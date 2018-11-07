@@ -13,10 +13,7 @@ class Bathymetry(object):
     def __init__(self, lon, lat, depth, land_mask=None):
         self.lat = lat
         self.lon = lon
-        if land_mask is not None:
-            self.depth = numpy.ma.masked_array(depth, mask=land_mask)
-        else:
-            self.depth = depth
+        self.depth = numpy.ma.masked_array(depth, mask=land_mask)
 
         dx_lon = numpy.diff(self.lon)
         assert numpy.all(numpy.abs(dx_lon - dx_lon[0]) < 1e-6), \
@@ -136,19 +133,18 @@ def plot_bathymetry(b, ax=None, imgfile=None):
 
     if ax is None:
         ax = plt.subplot(111)
-    D = b.depth
-    if numpy.ma.is_masked(D):
-        D = b.depth.filled(numpy.nan)
-    p = ax.pcolormesh(lon_plot, lat_plot, D.T)
+    dep = b.depth.filled(numpy.nan)
+    p = ax.pcolormesh(lon_plot, lat_plot, dep.T)
     ax.set_xlabel('Longitude [deg E]')
     ax.set_ylabel('Latitude [deg N]')
-    plt.colorbar(p, label='Depth [m]')
+    plt.colorbar(p, ax=ax, label='Depth [m]')
 
     if imgfile is None:
         plt.show()
     else:
         print('Saving image {:}'.format(imgfile))
         plt.savefig(imgfile, dpi=200, bbox_inches='tight')
+        plt.close()
 
 
 def write_ascii_wamtopo(b, outfile='wamtopo.asc'):
@@ -167,7 +163,10 @@ def write_ascii_wamtopo(b, outfile='wamtopo.asc'):
             b.dx_lat, b.dx_lon,
             b.lat.min(), b.lat.max(), b.lon.min(), b.lon.max())
         f.write(header)
-        for line, mask in zip(b.depth.filled(0.0).T, b.depth.mask.T):
+        dep = b.depth
+        mask = dep.mask
+        dep = dep.filled(0.0)
+        for line, mask in zip(dep.T, mask.T):
             val_str = map(stringify_value, zip(line.astype(int), mask))
             val_str = ''.join(val_str)
             output = textwrap.fill(val_str, width=12*6, drop_whitespace=False)
