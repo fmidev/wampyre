@@ -18,4 +18,3 @@ b = read_ascii_wamtopo('wamtopo_HKI.asc')
 
 # plot bathymetry, save as PNG image
 plot_bathymetry(b, imgfile='bathymetry_HKI_02.png')
-

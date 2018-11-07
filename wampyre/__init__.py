@@ -1,1 +1,1 @@
-from wampyre.bathymetry import *
+from wampyre.bathymetry import *  # NOQA
