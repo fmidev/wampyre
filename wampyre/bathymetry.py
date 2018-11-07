@@ -173,16 +173,3 @@ def write_ascii_wamtopo(b, outfile='wamtopo.asc'):
             output = textwrap.fill(val_str, width=12*6, drop_whitespace=False)
             output += '\n'
             f.write(output)
-
-
-xyz_file = 'HKI_01nm_korjattu.xyz'
-bo = read_ascii_xyz(xyz_file, land_mask_value=0.0)
-print(bo)
-#plot_bathymetry(bo)
-# plot_bathymetry(bo, imgfile='test.png')
-
-bo = read_ascii_wamtopo('wamtopo_HKI_01nm.asc')
-#plot_bathymetry(bo)
-
-write_ascii_wamtopo(bo, outfile='wamtopo_test.asc')
-
