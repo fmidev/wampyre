@@ -50,6 +50,7 @@ def read_ascii_xyz(xyz_file, land_mask_value=None):
     lon, lat, depth
     ...
     """
+    print('Reading file {:}'.format(xyz_file))
     xyz = numpy.loadtxt(xyz_file, dtype=numpy.float64)
 
     lon = xyz[:, 0]
@@ -87,6 +88,7 @@ def read_ascii_wamtopo(topo_file):
     lon, lat, depth
     ...
     """
+    print('Reading file {:}'.format(topo_file))
     mask = []
     values = []
     with open(topo_file, 'r') as f:
