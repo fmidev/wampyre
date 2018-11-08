@@ -5,11 +5,21 @@
 
 ### Convert netCDF bathymetry to WAM ASCII format
 
-__TBD__
+```python
+from wampyre import *
+
+b = Bathymetry.read_netcdf('bathymetry.nc')
+b.write_ascii_wamtopo(outfile='wamtopo.asc')
+```
 
 ### Convert WAM ASCII bathymetry to netCDF format
 
-__TBD__
+```python
+from wampyre import *
+
+b = Bathymetry.read_ascii_wamtopo('wamtopo_HKI.asc')
+b.write_netcdf('bathymetry_HKI.nc')
+```
 
 ### Convert xyz ASCII bathymetry to WAM ASCII format
 

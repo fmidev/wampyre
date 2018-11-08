@@ -4,6 +4,7 @@ Tools for reading/writing/plotting WAM bathymetry files
 import numpy
 import matplotlib.pyplot as plt
 import textwrap
+import netCDF4
 
 
 class Bathymetry(object):
@@ -16,10 +17,10 @@ class Bathymetry(object):
         self.depth = numpy.ma.masked_array(depth, mask=land_mask)
 
         dx_lon = numpy.diff(self.lon)
-        assert numpy.all(numpy.abs(dx_lon - dx_lon[0]) < 1e-6), \
+        assert numpy.all(numpy.abs(dx_lon - dx_lon[0]) < 1e-4), \
             'Lon must be equally spaced'
         dx_lat = numpy.diff(self.lat)
-        assert numpy.all(numpy.abs(dx_lat - dx_lat[0]) < 1e-6), \
+        assert numpy.all(numpy.abs(dx_lat - dx_lat[0]) < 1e-4), \
             'Lat must be equally spaced'
         self.dx_lon = numpy.round(numpy.mean(dx_lon), 14)
         self.dx_lat = numpy.round(numpy.mean(dx_lat), 14)
@@ -28,7 +29,8 @@ class Bathymetry(object):
         msg = 'Depth array has wrong shape. Expected {:}, found {:}'
         shape = (nlon, nlat)
         assert depth.shape == shape, msg.format(shape, depth.shape)
-        assert numpy.all(depth >= 0.0), 'Depth must be non-negative'
+        good_ix = numpy.isfinite(depth)
+        assert numpy.all(depth[good_ix] >= 0.0), 'Depth must be non-negative'
 
     def __str__(self):
         out = ''
@@ -117,6 +119,52 @@ class Bathymetry(object):
         mask = numpy.reshape(mask, (nlat, nlon)).T
         return cls(lon, lat, values, land_mask=mask)
 
+    @classmethod
+    def read_netcdf(cls, ncfile):
+        """
+        Read bathymetry from netCDF file
+
+        netCDF file is assumed to contain fields with standard_name or
+        long_name attributes
+
+        - latitude: 'latitude'
+        - longitude: 'longitude'
+        - bathymetry: 'depth' or 'bathymetry'
+        - mask: 'land_binary_mask' or 'land mask'
+
+        If land mask is not found, mask is
+        """
+        print('Reading file {:}'.format(ncfile))
+        lat = lon = depth = mask = None
+        with netCDF4.Dataset(ncfile, 'r') as f:
+            for var in f.variables:
+                v = f[var]
+                attrs = v.ncattrs()
+                var_name = None
+                for a in ['long_name', 'standard_name']:
+                    if a in attrs:
+                        var_name = getattr(v, a).lower()
+                if var_name == 'latitude':
+                    lat = v[:]
+                elif var_name == 'longitude':
+                    lon = v[:]
+                elif var_name == 'depth' or var_name == 'bathymetry':
+                    depth = v[:]
+                    transpose = depth.shape != (len(lon), len(lat))
+        assert lon is not None, 'Longitude not found in {:}'.format(ncfile)
+        assert lat is not None, 'Latitude not found in {:}'.format(ncfile)
+        assert depth is not None, 'Depth not found in {:}'.format(ncfile)
+        if transpose:
+            depth = depth.T
+        if mask is None:
+            if numpy.ma.is_masked(depth):
+                # use array mask
+                mask = depth.mask
+            else:
+                # mask invalid values
+                mask = ~numpy.isfinite(depth)
+        return cls(lon, lat, depth, land_mask=mask)
+
     def write_ascii_wamtopo(self, outfile='wamtopo.asc'):
         """
         Writes bathymetry to disk in WAM ASCII format.
@@ -142,6 +190,40 @@ class Bathymetry(object):
                 output = textwrap.fill(val_str, width=12*6, drop_whitespace=False)
                 output += '\n'
                 f.write(output)
+
+    def write_netcdf(self, outfile='bathymetry.nc'):
+        """
+        Writes bathymetry to disk in netCDF format
+        """
+        print('Writing netCDF to {:}'.format(outfile))
+        with netCDF4.Dataset(outfile, 'w') as ncfile:
+            ncfile.createDimension('lon', len(self.lon))
+            ncfile.createDimension('lat', len(self.lat))
+            var_lon = ncfile.createVariable('lon', self.lon.dtype.char,
+                                            ('lon'))
+            var_lon.long_name = 'Longitude'
+            var_lon.standard_name = 'longitude'
+            var_lon.units = 'degrees_east'
+            var_lon.axis = 'X'
+            var_lon[:] = self.lon
+            var_lat = ncfile.createVariable('lat', self.lat.dtype.char,
+                                            ('lat'))
+            var_lat.Long_name = 'Latitude'
+            var_lat.standard_name = 'latitude'
+            var_lat.units = 'degrees_north'
+            var_lat.axis = 'Y'
+            var_lat[:] = self.lat
+            var_depth = ncfile.createVariable('depth', self.depth.dtype.char,
+                                              ('lat', 'lon'))
+            var_depth[:] = self.depth.filled(0.0).T
+            var_depth.long_name = 'Water depth'
+            var_depth.standard_name = 'depth'
+            var_depth.units = 'm'
+            var_mask = ncfile.createVariable('mask', 'i1', ('lat', 'lon'))
+            var_mask[:] = self.depth.mask.T
+            var_mask.long_name = 'Land mask'
+            var_mask.standard_name = 'land_binary_mask'
+            var_mask.units = '1'
 
 
 def plot_bathymetry(b, ax=None, imgfile=None):
