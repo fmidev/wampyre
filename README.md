@@ -1,5 +1,24 @@
-# wampyre - configuration tools for WAM wave model
+# wampyre
 
+Configuration tools for WAM wave model
+
+## Installation
+
+Clone sources
+
+```
+git clone https://github.com/fmidev/wampyre.git
+```
+
+Install with `pip` in virtualenv
+
+```bash
+pip install -r <path_to_wampyre_root>/requirements.txt
+pip install -e <path_to_wampyre_root>/
+```
+
+Install for single user: use `pip install --user`. This will install the
+package under `$HOME/.local/lib/python*.*/site-packages/`.
 
 ## Examples
 
