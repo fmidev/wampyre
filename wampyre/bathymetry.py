@@ -226,9 +226,20 @@ class Bathymetry(object):
             var_mask.units = '1'
 
 
-def plot_bathymetry(b, ax=None, imgfile=None):
+def plot_bathymetry(b, imgfile=None, ax=None):
     """
-    Plots bathymetry
+    Plot bathymetry
+
+    If `ax` is not given will create new figure and axes.
+    If `imgfile` is given will store image to disk.
+
+    If `ax` and `imgfile` are not given will show image with
+    matplotlib.pyplot.show().
+
+    :arg b: Bathymetry instance
+    :kwarg str imgfile: Image file name with format extension (optional)
+    :kwarg ax: matplotlib axes instance where the the data will be drawn
+        (optional)
     """
     lon = b.lon
     lat = b.lat
@@ -239,6 +250,8 @@ def plot_bathymetry(b, ax=None, imgfile=None):
     lon_plot = numpy.linspace(lon[0] - dx_lon/2, lon[-1] + dx_lon/2, nlon + 1)
     lat_plot = numpy.linspace(lat[0] - dx_lat/2, lat[-1] + dx_lat/2, nlat + 1)
 
+    shom_img = imgfile is None and ax is None
+
     if ax is None:
         ax = plt.subplot(111)
     dep = b.depth.filled(numpy.nan)
@@ -247,9 +260,9 @@ def plot_bathymetry(b, ax=None, imgfile=None):
     ax.set_ylabel('Latitude [deg N]')
     plt.colorbar(p, ax=ax, label='Depth [m]')
 
-    if imgfile is None:
+    if shom_img:
         plt.show()
-    else:
+    if imgfile is not None:
         print('Saving image {:}'.format(imgfile))
         plt.savefig(imgfile, dpi=200, bbox_inches='tight')
         plt.close()
