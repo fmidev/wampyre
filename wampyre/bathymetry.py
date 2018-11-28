@@ -120,7 +120,7 @@ class Bathymetry(object):
         return cls(lon, lat, values, land_mask=mask)
 
     @classmethod
-    def read_netcdf(cls, ncfile):
+    def read_netcdf(cls, ncfile, var_name=None):
         """
         Read bathymetry from netCDF file
 
@@ -136,24 +136,40 @@ class Bathymetry(object):
         """
         print('Reading file {:}'.format(ncfile))
         lat = lon = depth = mask = None
-        with netCDF4.Dataset(ncfile, 'r') as f:
-            for var in f.variables:
+
+        def _find_var_name(ncfile, name_list):
+            for var in ncfile.variables:
                 v = f[var]
                 attrs = v.ncattrs()
-                var_name = None
+                # look for CF names
+                metaname = None
                 for a in ['long_name', 'standard_name']:
                     if a in attrs:
-                        var_name = getattr(v, a).lower()
-                if var_name == 'latitude':
-                    lat = v[:]
-                elif var_name == 'longitude':
-                    lon = v[:]
-                elif var_name == 'depth' or var_name == 'bathymetry':
-                    depth = v[:]
-                    transpose = depth.shape != (len(lon), len(lat))
-        assert lon is not None, 'Longitude not found in {:}'.format(ncfile)
-        assert lat is not None, 'Latitude not found in {:}'.format(ncfile)
-        assert depth is not None, 'Depth not found in {:}'.format(ncfile)
+                        metaname = getattr(v, a).lower()
+                if metaname in name_list:
+                    return var
+                # look for var name
+                if var.lower() in name_list:
+                    return var
+            raise IOError('Could not find variable {:} '
+                          'in file {:}'.format(name_list, ncfile.filepath()))
+
+        with netCDF4.Dataset(ncfile, 'r') as f:
+            vname = _find_var_name(f, ['longitude'])
+            lon = f[vname][:]
+            vname = _find_var_name(f, ['latitude'])
+            lat = f[vname][:]
+            vname = _find_var_name(f, ['depth', 'bathymetry', 'bathy_metry'])
+            depth = f[vname][:]
+
+        # if coordinate arrays are 2-dimensional try to extract unique values
+        # works for constant resolution NEMO grids
+        if len(lat.shape) > 1:
+            lat = numpy.unique(lat)
+        if len(lon.shape) > 1:
+            lon = numpy.unique(lon)
+
+        transpose = depth.shape != (len(lon), len(lat))
         if transpose:
             depth = depth.T
         if mask is None:
